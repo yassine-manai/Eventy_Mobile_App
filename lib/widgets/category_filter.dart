@@ -5,7 +5,7 @@ class CategoryFilter extends StatelessWidget {
   final String selectedCategory;
   final Function(String) onCategorySelected;
 
-  const CategoryFilter({
+  const CategoryFilter({super.key, 
     required this.categories,
     required this.selectedCategory,
     required this.onCategorySelected,
@@ -13,13 +13,13 @@ class CategoryFilter extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    return SizedBox(
       height: 50,
       child: ListView.builder(
         scrollDirection: Axis.horizontal,
         itemCount: categories.length,
         itemBuilder: (ctx, index) => Padding(
-          padding: EdgeInsets.symmetric(horizontal: 4),
+          padding: const EdgeInsets.symmetric(horizontal: 4),
           child: FilterChip(
             label: Text(categories[index]),
             selected: selectedCategory == categories[index],

@@ -5,7 +5,7 @@ class EventCard extends StatelessWidget {
   final Event event;
   final VoidCallback onTap;
 
-  const EventCard({
+  const EventCard({super.key, 
     required this.event,
     required this.onTap,
   });
@@ -13,14 +13,14 @@ class EventCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Card(
-      margin: EdgeInsets.all(8),
+      margin: const EdgeInsets.all(8),
       child: InkWell(
         onTap: onTap,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             ClipRRect(
-              borderRadius: BorderRadius.vertical(top: Radius.circular(4)),
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(4)),
               child: Image.network(
                 event.imageUrl,
                 width: double.infinity,
@@ -31,7 +31,7 @@ class EventCard extends StatelessWidget {
                     width: double.infinity,
                     height: 150,
                     color: Colors.grey[300],
-                    child: Icon(Icons.error_outline, size: 40),
+                    child: const Icon(Icons.error_outline, size: 40),
                   );
                 },
                 loadingBuilder: (context, child, loadingProgress) {
@@ -53,7 +53,7 @@ class EventCard extends StatelessWidget {
               ),
             ),
             Padding(
-              padding: EdgeInsets.all(8),
+              padding: const EdgeInsets.all(8),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -61,12 +61,12 @@ class EventCard extends StatelessWidget {
                     event.title,
                     style: Theme.of(context).textTheme.titleLarge,
                   ),
-                  SizedBox(height: 4),
+                  const SizedBox(height: 4),
                   Text(
                     'Category: ${event.category}',
                     style: Theme.of(context).textTheme.bodyMedium,
                   ),
-                  SizedBox(height: 4),
+                  const SizedBox(height: 4),
                   Text(
                     'Start Date: ${event.startDate}',
                     style: Theme.of(context).textTheme.bodyMedium,

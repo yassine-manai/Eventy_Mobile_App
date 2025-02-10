@@ -1,4 +1,5 @@
-import 'package:event_app/models/event.dart';
+
+import '../models/event.dart';
 
 final List<Event> dummyEvents = [
   Event(
