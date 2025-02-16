@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
+import 'dart:convert';
+import 'package:http/http.dart' as http;
 import '../models/event.dart';
-import '../data/dummy_data.dart';
 import '../widgets/event_card.dart';
 import '../widgets/category_filter.dart';
 import 'event_detail_screen.dart';
-import 'login_screen.dart'; // Add this import
+import 'login_screen.dart';
 
 class EventListScreen extends StatefulWidget {
   const EventListScreen({super.key});
@@ -17,6 +18,7 @@ class EventListScreenState extends State<EventListScreen> with SingleTickerProvi
   String selectedCategory = 'All';
   String searchQuery = '';
   List<Event> filteredEvents = [];
+  List<String> categories = ['All'];
   bool isLoading = false;
   final ScrollController _scrollController = ScrollController();
   late AnimationController _animationController;
@@ -25,7 +27,6 @@ class EventListScreenState extends State<EventListScreen> with SingleTickerProvi
   @override
   void initState() {
     super.initState();
-    filteredEvents = dummyEvents;
     _animationController = AnimationController(
       duration: const Duration(milliseconds: 300),
       vsync: this,
@@ -36,6 +37,8 @@ class EventListScreenState extends State<EventListScreen> with SingleTickerProvi
     );
     _animationController.forward();
     _scrollController.addListener(_onScroll);
+    _fetchCategories();
+    _fetchEvents();
   }
 
   @override
@@ -51,13 +54,52 @@ class EventListScreenState extends State<EventListScreen> with SingleTickerProvi
     }
   }
 
-  Future<void> _loadMoreEvents() async {
-    if (!isLoading) {
+  Future<void> _fetchCategories() async {
+    final response = await http.get(Uri.parse('http://192.168.1.20:5050/mobile/get_categorys'));
+    if (response.statusCode == 200) {
+      final List<dynamic> data = jsonDecode(response.body);
       setState(() {
-        isLoading = true;
+        categories.addAll(data.map((cat) => cat['category_name'].toString()).toList());
       });
-      await Future.delayed(const Duration(seconds: 1));
+    }
+  }
+  Future<void> _loadMoreEvents() async {
+  if (!isLoading) {
+    setState(() {
+      isLoading = true;
+    });
+
+    try {
+      final response = await http.get(Uri.parse('http://192.168.1.20:5050/mobile/get_events'));
+
+      if (response.statusCode == 200) {
+        List<dynamic> data = json.decode(response.body);
+        List<Event> newEvents = data.map((json) => Event.fromJson(json)).toList();
+
+        setState(() {
+          filteredEvents.addAll(newEvents);
+        });
+      }
+    } catch (error) {
+      print('Error fetching more events: $error');
+    }
+
+    setState(() {
+      isLoading = false;
+    });
+  }
+}
+
+
+  Future<void> _fetchEvents() async {
+    setState(() {
+      isLoading = true;
+    });
+    final response = await http.get(Uri.parse('http://192.168.1.20:5050/mobile/get_events'));
+    if (response.statusCode == 200) {
+      final List<dynamic> data = jsonDecode(response.body);
       setState(() {
+        filteredEvents = data.map((json) => Event.fromJson(json)).toList();
         isLoading = false;
       });
     }
@@ -66,37 +108,17 @@ class EventListScreenState extends State<EventListScreen> with SingleTickerProvi
   void filterEvents(String category) {
     setState(() {
       selectedCategory = category;
-      _applyFilters();
     });
   }
 
   void onSearchChanged(String query) {
     setState(() {
       searchQuery = query.toLowerCase();
-      _applyFilters();
     });
-  }
-
-  void _applyFilters() {
-    filteredEvents = dummyEvents.where((event) {
-      final matchesCategory = selectedCategory == 'All' || event.category == selectedCategory;
-      final matchesSearch = searchQuery.isEmpty ||
-          event.title.toLowerCase().contains(searchQuery) ||
-          event.description.toLowerCase().contains(searchQuery);
-      return matchesCategory && matchesSearch;
-    }).toList();
-    filteredEvents.sort((b, a) => a.startDate.compareTo(b.startDate));
   }
 
   Future<void> _refreshEvents() async {
-    setState(() {
-      isLoading = true;
-    });
-    await Future.delayed(const Duration(seconds: 1));
-    setState(() {
-      _applyFilters();
-      isLoading = false;
-    });
+    await _fetchEvents();
   }
 
   void _disconnect() {
@@ -111,14 +133,17 @@ class EventListScreenState extends State<EventListScreen> with SingleTickerProvi
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.grey[100],
-      body: CustomScrollView(
-        slivers: [
-          _buildSliverAppBar(context),
-          SliverToBoxAdapter(
-            child: _buildCategoryFilter(),
-          ),
-          _buildEventsList(),
-        ],
+      body: RefreshIndicator(
+        onRefresh: _refreshEvents,
+        child: CustomScrollView(
+          slivers: [
+            _buildSliverAppBar(context),
+            SliverToBoxAdapter(
+              child: _buildCategoryFilter(),
+            ),
+            _buildEventsList(),
+          ],
+        ),
       ),
     );
   }
@@ -143,20 +168,7 @@ class EventListScreenState extends State<EventListScreen> with SingleTickerProvi
           ),
         ),
         centerTitle: false,
-        titlePadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
       ),
-      actions: [
-        IconButton(
-          icon: const Icon(Icons.search),
-          onPressed: () => _showSearchDialog(context),
-          color: Theme.of(context).primaryColor,
-        ),
-        IconButton(
-          icon: const Icon(Icons.sort),
-          onPressed: () => _showSortDialog(context),
-          color: Theme.of(context).primaryColor,
-        ),
-      ],
     );
   }
 
@@ -164,7 +176,7 @@ class EventListScreenState extends State<EventListScreen> with SingleTickerProvi
     return Container(
       margin: const EdgeInsets.symmetric(vertical: 8),
       child: CategoryFilter(
-        categories: const ['All', 'Music', 'Sports', 'Business', 'Technology', 'Art'],
+        categories: categories,
         selectedCategory: selectedCategory,
         onCategorySelected: filterEvents,
       ),
@@ -174,71 +186,22 @@ class EventListScreenState extends State<EventListScreen> with SingleTickerProvi
   Widget _buildEventsList() {
     if (filteredEvents.isEmpty) {
       return SliverFillRemaining(
-        child: _buildEmptyState(),
+        child: Center(
+          child: Text('No events found'),
+        ),
       );
     }
-
     return SliverPadding(
       padding: const EdgeInsets.all(16),
       sliver: SliverList(
         delegate: SliverChildBuilderDelegate(
-          (context, index) {
-            if (index == filteredEvents.length) {
-              return _buildLoader();
-            }
-            return Padding(
-              padding: const EdgeInsets.only(bottom: 16),
-              child: FadeTransition(
-                opacity: _animation,
-                child: EventCard(
-                  event: filteredEvents[index],
-                  onTap: () => _navigateToDetail(filteredEvents[index]),
-                ),
-              ),
-            );
-          },
-          childCount: filteredEvents.length + 1,
+          (context, index) => EventCard(
+            event: filteredEvents[index],
+            onTap: () => _navigateToDetail(filteredEvents[index]),
+          ),
+          childCount: filteredEvents.length,
         ),
       ),
-    );
-  }
-
-  Widget _buildEmptyState() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            Icons.event_busy,
-            size: 64,
-            color: Colors.grey[400],
-          ),
-          const SizedBox(height: 16),
-          Text(
-            'No events found',
-            style: TextStyle(
-              fontSize: 18,
-              color: Colors.grey[600],
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Try adjusting your filters',
-            style: TextStyle(
-              color: Colors.grey[500],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildLoader() {
-    return Container(
-      padding: const EdgeInsets.all(16.0),
-      alignment: Alignment.center,
-      child: isLoading ? const CircularProgressIndicator() : const SizedBox(),
     );
   }
 
@@ -249,76 +212,5 @@ class EventListScreenState extends State<EventListScreen> with SingleTickerProvi
         builder: (context) => EventDetailScreen(event: event),
       ),
     );
-  }
-
-  void _showSearchDialog(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-          title: const Text('Search Events'),
-          content: TextField(
-            onChanged: onSearchChanged,
-            decoration: InputDecoration(
-              hintText: 'Enter event name or description...',
-              prefixIcon: const Icon(Icons.search),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              filled: true,
-              fillColor: Colors.grey[100],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: Text(
-                'Close',
-                style: TextStyle(
-                  color: Theme.of(context).primaryColor,
-                ),
-              ),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  void _showSortDialog(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('Sort Events'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              _buildSortOption('Date (Newest First)', () => _sortEvents((b, a) => a.startDate.compareTo(b.startDate))),
-              _buildSortOption('Date (Oldest First)', () => _sortEvents((a, b) => a.startDate.compareTo(b.startDate))),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _buildSortOption(String title, VoidCallback onTap) {
-    return ListTile(
-      title: Text(title),
-      onTap: () {
-        onTap();
-        Navigator.pop(context);
-      },
-    );
-  }
-
-  void _sortEvents(int Function(Event, Event) compareFunction) {
-    setState(() {
-      filteredEvents.sort(compareFunction);
-    });
   }
 }

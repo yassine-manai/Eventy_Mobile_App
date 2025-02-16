@@ -44,7 +44,7 @@ class EventDetailScreen extends StatelessWidget {
           fit: StackFit.expand,
           children: [
             Image.network(
-              event.imageUrl,
+              event.image,
               fit: BoxFit.cover,
               errorBuilder: (context, error, stackTrace) {
                 return Container(
@@ -124,7 +124,7 @@ class EventDetailScreen extends StatelessWidget {
           const SizedBox(height: 16),
           _buildInfoChip(Icons.location_on, event.location),
           const SizedBox(height: 8),
-          _buildInfoChip(Icons.category, event.category),
+          _buildInfoChip(Icons.category, event.category.toString()),
         ],
       ),
     );
@@ -179,13 +179,6 @@ class EventDetailScreen extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 12),
-          Text(
-            event.description,
-            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-              height: 1.5,
-              color: Colors.grey[700],
-            ),
-          ),
         ],
       ),
     );
@@ -205,13 +198,6 @@ class EventDetailScreen extends StatelessWidget {
           Text(
             'Ticket Price',
             style: Theme.of(context).textTheme.titleMedium,
-          ),
-          Text(
-            _formatPrice(event.price),
-            style: Theme.of(context).textTheme.titleLarge?.copyWith(
-              color: Theme.of(context).primaryColor,
-              fontWeight: FontWeight.bold,
-            ),
           ),
         ],
       ),
